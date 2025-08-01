@@ -76,7 +76,7 @@
                 </div>
                 <div class="flex space-x-4">
                     <label class="flex items-center space-x-2 text-gray-700">
-                        <input type="radio" name="dateType" value="salida" checked class="form-radio text-indigo-600">
+                        <input type="radio" name="dateType" value="salida" checked class="form-radio text-indigo-600" id="salidaRadio">
                         <span>Salida</span>
                     </label>
                     <label class="flex items-center space-x-2 text-gray-700">
@@ -140,6 +140,7 @@
             const undoDateBtn = document.getElementById('undoDateBtn');
             const clearDatesBtn = document.getElementById('clearDatesBtn');
             const entradaRadio = document.getElementById('entradaRadio');
+            const salidaRadio = document.getElementById('salidaRadio');
 
             let salidas = [];
             let entradas = [];
@@ -155,17 +156,49 @@
                 salidasList.innerHTML = '';
                 entradasList.innerHTML = '';
                 
-                salidas.sort().forEach(date => {
+                // Función para crear un elemento de lista con botón de eliminar
+                const createDateItem = (date, type) => {
                     const li = document.createElement('li');
-                    li.textContent = date;
+                    li.className = 'flex justify-between items-center p-1 bg-gray-50 rounded-lg';
+                    li.innerHTML = `
+                        <span>${date}</span>
+                        <button class="delete-date-btn text-red-500 hover:text-red-700 font-bold ml-2 transition duration-200 leading-none" data-date="${date}" data-type="${type}">
+                           x
+                        </button>
+                    `;
+                    return li;
+                };
+
+                salidas.sort().forEach(date => {
+                    const li = createDateItem(date, 'salida');
                     salidasList.appendChild(li);
                 });
                 
                 entradas.sort().forEach(date => {
-                    const li = document.createElement('li');
-                    li.textContent = date;
+                    const li = createDateItem(date, 'entrada');
                     entradasList.appendChild(li);
                 });
+
+                // Añadir event listeners a los nuevos botones de eliminar
+                document.querySelectorAll('.delete-date-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const dateToDelete = event.target.dataset.date;
+                        const typeToDelete = event.target.dataset.type;
+                        deleteDate(dateToDelete, typeToDelete);
+                    });
+                });
+            };
+
+            // Función para eliminar una fecha específica
+            const deleteDate = (dateToDelete, typeToDelete) => {
+                if (typeToDelete === 'salida') {
+                    salidas = salidas.filter(d => d !== dateToDelete);
+                } else {
+                    entradas = entradas.filter(d => d !== dateToDelete);
+                }
+                // También eliminar del historial para que el botón de deshacer funcione correctamente
+                history = history.filter(item => !(item.date === dateToDelete && item.type === typeToDelete));
+                renderDates();
             };
 
             // Función para calcular los días que caen dentro de una ventana de tiempo
@@ -339,12 +372,7 @@
             undoDateBtn.addEventListener('click', () => {
                 if (history.length > 0) {
                     const lastAdded = history.pop();
-                    if (lastAdded.type === 'salida') {
-                        salidas = salidas.filter(d => d !== lastAdded.date);
-                    } else {
-                        entradas = entradas.filter(d => d !== lastAdded.date);
-                    }
-                    renderDates();
+                    deleteDate(lastAdded.date, lastAdded.type);
                 }
             });
 
