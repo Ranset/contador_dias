@@ -13,6 +13,13 @@
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
+
+        .modal {
+            display: none;
+        }
+        .modal.open {
+            display: flex;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-start justify-center min-h-screen">
@@ -33,8 +40,8 @@
             <!-- Botones de control y Total de días -->
             <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                 <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                    <button id="addPeriodBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
-                        Nuevo período
+                    <button id="openModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                        Agregar fechas
                     </button>
                     <button id="resetBtn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
                         Borrar
@@ -49,76 +56,202 @@
             </div>
         </div>
 
-        <!-- Contenedor para los períodos -->
-        <div id="periodsContainer" class="p-6 md:p-10 w-full max-w-2xl mx-auto space-y-6">
-            <!-- Los períodos se añadirán aquí dinámicamente -->
+        <!-- Contenedor para el resumen de los períodos -->
+        <div id="summaryContainer" class="p-6 md:p-10 w-full max-w-2xl mx-auto space-y-6">
+            <!-- El resumen de los períodos se mostrará aquí -->
+            <p class="text-center text-gray-500 italic">Haz clic en "Agregar fechas" para empezar.</p>
+        </div>
+    </div>
+
+    <!-- Modal para agregar fechas -->
+    <div id="dateModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Agregar Fechas</h2>
+
+            <!-- Formulario para agregar una fecha -->
+            <div class="flex flex-col space-y-4 mb-6">
+                <div>
+                    <label for="newDateInput" class="block text-gray-700 font-medium mb-1">Fecha:</label>
+                    <input type="date" id="newDateInput" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200">
+                </div>
+                <div class="flex space-x-4">
+                    <label class="flex items-center space-x-2 text-gray-700">
+                        <input type="radio" name="dateType" value="salida" checked class="form-radio text-indigo-600">
+                        <span>Salida</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-gray-700">
+                        <input type="radio" name="dateType" value="entrada" class="form-radio text-indigo-600" id="entradaRadio">
+                        <span>Entrada</span>
+                    </label>
+                </div>
+                <button id="addDateToModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out">
+                    Añadir fecha
+                </button>
+            </div>
+
+            <!-- Listas de fechas agregadas y botones de acción -->
+            <div class="border-t pt-4 mt-4 border-gray-200">
+                <div class="flex justify-end space-x-2 mb-4">
+                    <button id="undoDateBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded-full shadow-md transition duration-300 ease-in-out">
+                        Deshacer
+                    </button>
+                    <button id="clearDatesBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-full shadow-md transition duration-300 ease-in-out">
+                        Borrar todas las fechas
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-bold text-gray-700 mb-2">Fechas de Salida:</h3>
+                        <ul id="salidasList" class="space-y-1 text-sm text-gray-600"></ul>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-700 mb-2">Fechas de Entrada:</h3>
+                        <ul id="entradasList" class="space-y-1 text-sm text-gray-600"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de acción del modal -->
+            <div class="flex justify-end space-x-4 mt-6 border-t pt-4 border-gray-200">
+                <button id="calculateBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out">
+                    Calcular
+                </button>
+                <button id="closeModalBtn" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out">
+                    Cerrar
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Lógica de la aplicación
         document.addEventListener('DOMContentLoaded', () => {
-            const periodsContainer = document.getElementById('periodsContainer');
-            const addPeriodBtn = document.getElementById('addPeriodBtn');
+            const openModalBtn = document.getElementById('openModalBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const dateModal = document.getElementById('dateModal');
+            const newDateInput = document.getElementById('newDateInput');
+            const addDateToModalBtn = document.getElementById('addDateToModalBtn');
+            const salidasList = document.getElementById('salidasList');
+            const entradasList = document.getElementById('entradasList');
+            const calculateBtn = document.getElementById('calculateBtn');
             const resetBtn = document.getElementById('resetBtn');
             const totalDaysDisplay = document.getElementById('totalDaysDisplay');
             const cutoffDateInput = document.getElementById('cutoffDateInput');
+            const summaryContainer = document.getElementById('summaryContainer');
+            const undoDateBtn = document.getElementById('undoDateBtn');
+            const clearDatesBtn = document.getElementById('clearDatesBtn');
+            const entradaRadio = document.getElementById('entradaRadio');
+
+            let salidas = [];
+            let entradas = [];
+            let history = []; // Almacena el historial de fechas añadidas para la función de deshacer
 
             // Establece la fecha de corte por defecto a la fecha actual
             const today = new Date();
             const todayString = today.toISOString().split('T')[0];
             cutoffDateInput.value = todayString;
 
-            // Nueva función para calcular los días que caen dentro de una ventana de tiempo
+            // Función para renderizar las listas de fechas en el modal
+            const renderDates = () => {
+                salidasList.innerHTML = '';
+                entradasList.innerHTML = '';
+                
+                salidas.sort().forEach(date => {
+                    const li = document.createElement('li');
+                    li.textContent = date;
+                    salidasList.appendChild(li);
+                });
+                
+                entradas.sort().forEach(date => {
+                    const li = document.createElement('li');
+                    li.textContent = date;
+                    entradasList.appendChild(li);
+                });
+            };
+
+            // Función para calcular los días que caen dentro de una ventana de tiempo
             const calculateDaysInWindow = (periodStart, periodEnd, windowStart, windowEnd) => {
                 const start = new Date(periodStart);
                 const end = new Date(periodEnd);
                 const windowStartObj = new Date(windowStart);
                 const windowEndObj = new Date(windowEnd);
 
-                // Determina el inicio y fin del período de solapamiento
                 const overlapStart = start > windowStartObj ? start : windowStartObj;
                 const overlapEnd = end < windowEndObj ? end : windowEndObj;
 
-                // Si no hay solapamiento, devuelve 0
                 if (overlapStart > overlapEnd) {
                     return 0;
                 }
 
-                // Calcula los días en el período de solapamiento
                 const diffTime = Math.abs(overlapEnd - overlapStart);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                 return diffDays;
             };
 
-            // Función para actualizar el total de días y su color
-            const updateTotal = () => {
-                const dayElements = periodsContainer.querySelectorAll('.period-item');
+            // Función para calcular y renderizar el resumen
+            const calculateAndRenderSummary = () => {
+                // Limpiar el contenedor de resumen
+                summaryContainer.innerHTML = '';
+                
                 let totalDays = 0;
-                
-                // Calcula la ventana de 2 años (730 días) a partir de la fecha de corte
-                const cutoffDate = new Date(cutoffDateInput.value);
-                const windowStart = new Date(cutoffDate);
-                windowStart.setDate(windowStart.getDate() - 729); // 730 días atrás, incluyendo el día de corte
-                
-                dayElements.forEach(item => {
-                    const departureDateInput = item.querySelector('.departure-date');
-                    const arrivalDateInput = item.querySelector('.arrival-date');
-                    const daysSpan = item.querySelector('.period-days');
+                const periodsInCount = [];
+                const periodsOutOfCount = [];
 
-                    // Asegurarse de que ambas fechas están seleccionadas para calcular
-                    if (departureDateInput.value && arrivalDateInput.value) {
-                         const periodDays = calculateDaysInWindow(departureDateInput.value, arrivalDateInput.value, windowStart, cutoffDate);
-                         daysSpan.textContent = `${periodDays} días`;
-                         totalDays += periodDays;
-                    } else {
-                         daysSpan.textContent = '0 días';
+                // Copiar y ordenar las fechas para el cálculo
+                const sortedSalidas = [...salidas].sort();
+                const sortedEntradas = [...entradas].sort();
+
+                // Parar si no hay suficientes fechas para formar un período
+                if (sortedSalidas.length === 0 || sortedEntradas.length === 0) {
+                    totalDaysDisplay.textContent = '0 días';
+                    summaryContainer.innerHTML = '<p class="text-center text-gray-500 italic">No hay períodos para calcular.</p>';
+                    return;
+                }
+                
+                let entradaIndex = 0;
+                sortedSalidas.forEach(salida => {
+                    // Encontrar la primera entrada posterior a la salida
+                    while (entradaIndex < sortedEntradas.length && sortedEntradas[entradaIndex] < salida) {
+                        entradaIndex++;
+                    }
+
+                    if (entradaIndex < sortedEntradas.length) {
+                        const entrada = sortedEntradas[entradaIndex];
+                        const periodStart = new Date(salida);
+                        const periodEnd = new Date(entrada);
+
+                        // Calcular días totales del período
+                        const diffTime = Math.abs(periodEnd - periodStart);
+                        const totalPeriodDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                        // Calcular días dentro de la ventana de 2 años
+                        const cutoffDate = new Date(cutoffDateInput.value);
+                        const windowStart = new Date(cutoffDate);
+                        windowStart.setDate(windowStart.getDate() - 729);
+                        const daysInWindow = calculateDaysInWindow(salida, entrada, windowStart, cutoffDate);
+
+                        if (daysInWindow > 0) {
+                             periodsInCount.push({
+                                 salida,
+                                 entrada,
+                                 totalDays: totalPeriodDays,
+                                 daysInWindow: daysInWindow
+                             });
+                             totalDays += daysInWindow;
+                        } else {
+                            periodsOutOfCount.push({
+                                salida,
+                                entrada,
+                                totalDays: totalPeriodDays,
+                                daysInWindow: daysInWindow
+                            });
+                        }
+                        entradaIndex++;
                     }
                 });
 
                 totalDaysDisplay.textContent = `${totalDays} días`;
-
-                // Cambiar el color según el total de días
+                
+                // Actualizar el color del total
                 if (totalDays > 180) {
                     totalDaysDisplay.classList.remove('text-green-600');
                     totalDaysDisplay.classList.add('text-red-600');
@@ -126,103 +259,140 @@
                     totalDaysDisplay.classList.remove('text-red-600');
                     totalDaysDisplay.classList.add('text-green-600');
                 }
+
+                // Generar el HTML del resumen
+                if (periodsInCount.length > 0) {
+                    const inCountHtml = `
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-700 mb-2">Períodos contados:</h3>
+                            <ul class="space-y-4">
+                                ${periodsInCount.map(p => `
+                                    <li class="bg-indigo-50 p-4 rounded-lg shadow-inner">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-medium text-gray-600">${p.salida} al ${p.entrada}</span>
+                                            <span class="font-bold text-indigo-600">${p.daysInWindow} días</span>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    summaryContainer.innerHTML += inCountHtml;
+                }
+
+                if (periodsOutOfCount.length > 0) {
+                    const outOfCountHtml = `
+                        <div class="${periodsInCount.length > 0 ? 'mt-8 border-t pt-8 border-gray-200' : ''}">
+                            <h3 class="text-xl font-bold text-gray-700 mb-2">Períodos fuera del conteo (730 días):</h3>
+                            <ul class="space-y-4">
+                                ${periodsOutOfCount.map(p => `
+                                    <li class="bg-red-50 p-4 rounded-lg shadow-inner">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-medium text-gray-600">${p.salida} al ${p.entrada}</span>
+                                            <span class="font-bold text-red-600">${p.daysInWindow} días</span>
+                                        </div>
+                                        <p class="text-sm text-gray-500 mt-1">Este período no está en la ventana de 2 años. Total del período: ${p.totalDays} días.</p>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    summaryContainer.innerHTML += outOfCountHtml;
+                }
+            };
+            
+            // Función para añadir una fecha a la lista
+            const addDate = () => {
+                const date = newDateInput.value;
+                const type = document.querySelector('input[name="dateType"]:checked').value;
+                if (date) {
+                    if (type === 'salida') {
+                        salidas.push(date);
+                    } else {
+                        entradas.push(date);
+                    }
+                    history.push({date, type});
+                    renderDates();
+                    newDateInput.value = ''; // Limpiar el input de fecha
+                    newDateInput.focus();
+                }
             };
 
-            // Función para crear un nuevo período
-            const createPeriod = () => {
-                // Crear el contenedor principal del período
-                const periodDiv = document.createElement('div');
-                periodDiv.className = 'period-item bg-white p-5 rounded-xl shadow-md border border-gray-200';
+            // Event Listeners
+            openModalBtn.addEventListener('click', () => {
+                dateModal.style.display = ''; // <-- Agrega esta línea
+                dateModal.classList.add('open');
+                // Inicializar el input de fecha con la fecha de hoy por conveniencia
+                newDateInput.value = todayString;
+                renderDates();
+                newDateInput.focus(); // Establecer el foco en el input de fecha
+            });
+            
+            closeModalBtn.addEventListener('click', () => {
+                dateModal.classList.remove('open');
+                dateModal.style.display = 'none'; // Fuerza el cierre visual
+            });
+            
+            addDateToModalBtn.addEventListener('click', addDate);
 
-                // Contenedor para los inputs y el botón de borrar
-                const inputWrapper = document.createElement('div');
-                inputWrapper.className = 'flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 items-center';
-
-                // Crear el input para la fecha de salida
-                const salidaDiv = document.createElement('div');
-                salidaDiv.className = 'flex-1 w-full';
-                salidaDiv.innerHTML = `
-                    <label class="block text-gray-700 font-medium mb-1">Fecha de salida:</label>
-                    <input type="date" class="departure-date w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200">
-                `;
-                const departureInput = salidaDiv.querySelector('.departure-date');
-
-                // Crear el input para la fecha de entrada
-                const entradaDiv = document.createElement('div');
-                entradaDiv.className = 'flex-1 w-full';
-                entradaDiv.innerHTML = `
-                    <label class="block text-gray-700 font-medium mb-1">Fecha de entrada:</label>
-                    <input type="date" class="arrival-date w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-200">
-                `;
-                const arrivalInput = entradaDiv.querySelector('.arrival-date');
-
-                // Crear el span para mostrar los días del período
-                const daysSpan = document.createElement('span');
-                daysSpan.className = 'period-days text-lg font-bold text-gray-800 text-center md:text-right w-full md:w-auto mt-4 md:mt-0';
-                daysSpan.textContent = '0 días';
-
-                // Crear el botón para borrar el período
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-period-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full shadow-md transition duration-300 ease-in-out';
-                deleteBtn.textContent = 'Borrar';
-                deleteBtn.addEventListener('click', () => {
-                    periodsContainer.removeChild(periodDiv);
-                    updateTotal();
-                });
-
-                // Añadir los elementos al contenedor del período
-                inputWrapper.appendChild(salidaDiv);
-                inputWrapper.appendChild(entradaDiv);
-                
-                const displayWrapper = document.createElement('div');
-                displayWrapper.className = 'flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-4 border-t border-gray-200';
-                displayWrapper.appendChild(daysSpan);
-                displayWrapper.appendChild(deleteBtn);
-
-                periodDiv.appendChild(inputWrapper);
-                periodDiv.appendChild(displayWrapper);
-
-                // Añadir el período al contenedor principal
-                periodsContainer.appendChild(periodDiv);
-
-                // Hacer scroll hasta el nuevo período
-                periodDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-
-                // Event listener para los cambios en las fechas
-                const updatePeriodDays = () => {
-                    updateTotal();
-                };
-
-                departureInput.addEventListener('change', () => {
-                    // Auto-rellena la fecha de entrada
-                    arrivalInput.value = departureInput.value; 
-                    updatePeriodDays();
-                });
-                arrivalInput.addEventListener('change', updatePeriodDays);
-            };
-
-            // Event listener para el botón "Nuevo período"
-            addPeriodBtn.addEventListener('click', createPeriod);
-
-            // Atajo de teclado (Ctrl + a) para añadir un nuevo período
-            document.addEventListener('keydown', (event) => {
-                if (event.ctrlKey && event.key === 'a') {
-                    event.preventDefault(); // Evita la acción por defecto del navegador (seleccionar todo)
-                    createPeriod();
+            // Deshacer la última fecha añadida
+            undoDateBtn.addEventListener('click', () => {
+                if (history.length > 0) {
+                    const lastAdded = history.pop();
+                    if (lastAdded.type === 'salida') {
+                        salidas = salidas.filter(d => d !== lastAdded.date);
+                    } else {
+                        entradas = entradas.filter(d => d !== lastAdded.date);
+                    }
+                    renderDates();
                 }
             });
 
-            // Event listener para el botón "Borrar todos los datos"
-            resetBtn.addEventListener('click', () => {
-                periodsContainer.innerHTML = '';
-                updateTotal();
+            // Borrar todas las fechas del modal
+            clearDatesBtn.addEventListener('click', () => {
+                salidas = [];
+                entradas = [];
+                history = [];
+                renderDates();
             });
 
-            // Event listener para el cambio en la fecha de corte
-            cutoffDateInput.addEventListener('change', updateTotal);
+            // Atajos de teclado en el modal
+            dateModal.addEventListener('keydown', (event) => {
+                // Atajo para el botón "Añadir fecha" con Enter
+                if (event.key === 'Enter') {
+                    event.preventDefault(); 
+                    addDate();
+                }
+                // Atajo para alternar entre "Salida" y "Entrada" con el teclado numérico "+"
+                else if (event.key === '+' || event.key === 'NumpadAdd') {
+                    event.preventDefault(); // Previene la acción por defecto
+                    const salidaRadio = document.querySelector('input[name="dateType"][value="salida"]');
+                    const entradaRadio = document.querySelector('input[name="dateType"][value="entrada"]');
+                    if (salidaRadio.checked) {
+                        entradaRadio.checked = true;
+                    } else {
+                        salidaRadio.checked = true;
+                    }
+                }
+            });
 
-            // Inicializar con un período al cargar la página
-            createPeriod();
+            calculateBtn.addEventListener('click', () => {
+                calculateAndRenderSummary();
+                dateModal.classList.remove('open');
+                dateModal.style.display = 'none'; // Fuerza el cierre visual
+            });
+
+            resetBtn.addEventListener('click', () => {
+                salidas = [];
+                entradas = [];
+                history = [];
+                summaryContainer.innerHTML = '<p class="text-center text-gray-500 italic">Haz clic en "Agregar fechas" para empezar.</p>';
+                totalDaysDisplay.textContent = '0 días';
+                totalDaysDisplay.classList.remove('text-red-600', 'text-green-600');
+                totalDaysDisplay.classList.add('font-bold');
+            });
+
+            cutoffDateInput.addEventListener('change', calculateAndRenderSummary);
         });
     </script>
 </body>
